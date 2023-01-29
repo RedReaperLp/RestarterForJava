@@ -1,6 +1,7 @@
 package com.github.redreaperlp;
 
 import com.github.redreaperlp.util.Config;
+import com.github.redreaperlp.util.SaveCaller;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -15,9 +16,14 @@ public class Main {
     static Config conf = new Config();
     static String program;
 
+    public static Process process;
+
     static String RED = "\u001B[31m";
     static String RESET = "\u001B[0m";
     public static void main(String[] args) throws InterruptedException, IOException {
+        Runtime rt = Runtime.getRuntime();
+        rt.addShutdownHook(new Thread(new SaveCaller()));
+
         conf.saveConfig();
         program = conf.getConfig("program");
         System.out.println("Starting " + program);
@@ -25,15 +31,15 @@ public class Main {
         try {
             ProcessBuilder builder = new ProcessBuilder("java", "-jar", program);
             builder.inheritIO();
-            Process p = builder.start();
+            process = builder.start();
             while (true) {
                 TimeUnit.SECONDS.sleep(2);
                 String newHash = digest();
                 if (!oldHash.equals(newHash)) {
                     System.out.println(RED + "\n\n\n" + program + " has been updated, restarting...\n\n\n" + RESET);
                     oldHash = newHash;
-                    p.destroy();
-                    p = builder.start();
+                    process.destroy();
+                    process = builder.start();
                 }
             }
         } catch (FileNotFoundException e) {
