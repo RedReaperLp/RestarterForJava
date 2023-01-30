@@ -1,17 +1,15 @@
 package com.github.redreaperlp;
 
 import com.github.redreaperlp.util.Config;
+import com.github.redreaperlp.util.ProgramOutput;
 import com.github.redreaperlp.util.SaveCaller;
 
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileNotFoundException;
-import java.io.IOException;
+import java.io.*;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.concurrent.TimeUnit;
 
-public class Main {
+public class Main implements Runnable {
     static String oldHash = "";
     static Config conf = new Config();
     static String program;
@@ -20,18 +18,24 @@ public class Main {
 
     static String RED = "\u001B[31m";
     static String RESET = "\u001B[0m";
+
+    static BufferedWriter writer;
+
     public static void main(String[] args) throws InterruptedException, IOException {
         Runtime rt = Runtime.getRuntime();
         rt.addShutdownHook(new Thread(new SaveCaller()));
+        new Thread(new Main()).start();
 
         conf.saveConfig();
         program = conf.getConfig("program");
         System.out.println("Starting " + program);
         oldHash = digest();
+
+        ProcessBuilder builder = new ProcessBuilder("java", "-jar", program);
+        process = builder.start();
+        writer = new BufferedWriter(new OutputStreamWriter(process.getOutputStream()));
+        ProgramOutput p = new ProgramOutput(process, null);
         try {
-            ProcessBuilder builder = new ProcessBuilder("java", "-jar", program);
-            builder.inheritIO();
-            process = builder.start();
             while (true) {
                 TimeUnit.SECONDS.sleep(2);
                 String newHash = digest();
@@ -40,6 +44,8 @@ public class Main {
                     oldHash = newHash;
                     process.destroy();
                     process = builder.start();
+                    p = new ProgramOutput(process, p.thread());
+                    writer = new BufferedWriter(new OutputStreamWriter(process.getOutputStream()));
                 }
             }
         } catch (FileNotFoundException e) {
@@ -79,6 +85,33 @@ public class Main {
             throw new RuntimeException(e);
         } catch (NoSuchAlgorithmException e) {
             throw new RuntimeException(e);
+        }
+    }
+
+    @Override
+    public void run() {
+        BufferedReader reader = new BufferedReader(new InputStreamReader(System.in));
+        while (true) {
+            String line;
+            try {
+                if ((line = reader.readLine()) != null) {
+                    if (line.equals("exit")) {
+                        System.out.println("Exiting Restart Manager");
+                        System.exit(0);
+                    } else if (line.equals("restart")) {
+                        System.out.println("Restarting " + program);
+                        process.destroy();
+                        process = new ProcessBuilder("java", "-jar", program).start();
+                        new ProgramOutput(process, Thread.currentThread());
+                        writer = new BufferedWriter(new OutputStreamWriter(process.getOutputStream()));
+                    } else {
+                        writer.write(line);
+                        writer.flush();
+                    }
+                }
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
         }
     }
 }
