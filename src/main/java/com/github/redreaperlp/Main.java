@@ -19,21 +19,19 @@ public class Main implements Runnable {
     static String RED = "\u001B[31m";
     static String RESET = "\u001B[0m";
 
-    static BufferedWriter writer;
-
     public static void main(String[] args) throws InterruptedException, IOException {
         Runtime rt = Runtime.getRuntime();
         rt.addShutdownHook(new Thread(new SaveCaller()));
-        new Thread(new Main()).start();
 
         conf.saveConfig();
         program = conf.getConfig("program");
         System.out.println("Starting " + program);
-        oldHash = digest();
 
         ProcessBuilder builder = new ProcessBuilder("java", "-jar", program);
         process = builder.start();
-        writer = new BufferedWriter(new OutputStreamWriter(process.getOutputStream()));
+        new Thread(new Main()).start();
+
+        oldHash = digest();
         ProgramOutput p = new ProgramOutput(process, null);
         try {
             while (true) {
@@ -45,7 +43,6 @@ public class Main implements Runnable {
                     process.destroy();
                     process = builder.start();
                     p = new ProgramOutput(process, p.thread());
-                    writer = new BufferedWriter(new OutputStreamWriter(process.getOutputStream()));
                 }
             }
         } catch (FileNotFoundException e) {
@@ -103,13 +100,11 @@ public class Main implements Runnable {
                         process.destroy();
                         process = new ProcessBuilder("java", "-jar", program).start();
                         new ProgramOutput(process, Thread.currentThread());
-                        writer = new BufferedWriter(new OutputStreamWriter(process.getOutputStream()));
                     } else {
-                        writer.write(line);
-                        writer.flush();
+                        System.out.println("Unknown Command");
                     }
                 }
-            } catch (IOException e) {
+            } catch (Exception e) {
                 throw new RuntimeException(e);
             }
         }

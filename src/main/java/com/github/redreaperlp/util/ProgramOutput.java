@@ -3,7 +3,7 @@ package com.github.redreaperlp.util;
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
 
-public class ProgramOutput implements Runnable{
+public class ProgramOutput implements Runnable {
     Process process;
     Thread thread;
 
@@ -15,17 +15,19 @@ public class ProgramOutput implements Runnable{
         thread = new Thread(this);
         thread.start();
     }
+
     @Override
     public void run() {
-        BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()));
+        BufferedReader reader = process.inputReader();
         String line;
+
         while (true) {
             try {
                 if ((line = reader.readLine()) != null) {
                     System.out.println(line);
                 }
             } catch (Exception e) {
-                e.printStackTrace();
+                return;
             }
         }
     }
